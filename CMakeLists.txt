@@ -9,9 +9,12 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 add_executable(terminal_plotter
     src/main.cpp
     src/function.cpp
+    src/parser.cpp
     src/plot.cpp
     src/renderer.cpp
 )
@@ -29,9 +32,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     )
 endif()
 
-# =========================
 # clang-format
-# =========================
 
 find_program(CLANG_FORMAT clang-format)
 

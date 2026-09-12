@@ -2,31 +2,110 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstdlib>
+#include <iomanip>
 #include <iostream>
+#include <optional>
+#include <sstream>
+#include <string>
 #include <vector>
 
 namespace plotter {
 
 namespace {
 
-void drawLine(std::vector<std::string>& canvas, ScreenPoint from, ScreenPoint to) {
+struct PlotBounds {
+    double xmin;
+    double xmax;
+    double ymin;
+    double ymax;
+};
+
+bool isValidY(const Point& point) {
+    return point.y.has_value() &&
+           std::isfinite(*point.y);
+}
+
+std::optional<PlotBounds> calculateBounds(
+    const std::vector<Point>& points) {
+
+    if (points.empty()) {
+        return std::nullopt;
+    }
+
+    const auto firstValid =
+        std::find_if(
+            points.begin(),
+            points.end(),
+            [](const Point& point) {
+                return isValidY(point);
+            });
+
+    if (firstValid == points.end()) {
+        return std::nullopt;
+    }
+
+    PlotBounds bounds{
+        points.front().x,
+        points.back().x,
+        *firstValid->y,
+        *firstValid->y
+    };
+
+    for (const auto& point : points) {
+        if (!isValidY(point)) {
+            continue;
+        }
+
+        bounds.ymin =
+            std::min(bounds.ymin, *point.y);
+
+        bounds.ymax =
+            std::max(bounds.ymax, *point.y);
+    }
+
+    return bounds;
+}
+
+std::string formatValue(double value) {
+    std::ostringstream stream;
+
+    stream << std::fixed
+           << std::setprecision(2)
+           << value;
+
+    return stream.str();
+}
+
+void drawLine(
+    std::vector<std::string>& canvas,
+    ScreenPoint from,
+    ScreenPoint to) {
+
     int x0 = static_cast<int>(from.column);
     int y0 = static_cast<int>(from.row);
 
-    int x1 = static_cast<int>(to.column);
-    int y1 = static_cast<int>(to.row);
+    const int x1 = static_cast<int>(to.column);
+    const int y1 = static_cast<int>(to.row);
 
     const int dx = std::abs(x1 - x0);
     const int dy = std::abs(y1 - y0);
 
-    const int sx = x0 < x1 ? 1 : -1;
-    const int sy = y0 < y1 ? 1 : -1;
+    const int sx =
+        x0 < x1 ? 1 : -1;
+
+    const int sy =
+        y0 < y1 ? 1 : -1;
 
     int error = dx - dy;
 
     while (true) {
-        canvas[y0][x0] = '*';
+        if (y0 >= 0 &&
+            y0 < static_cast<int>(canvas.size()) &&
+            x0 >= 0 &&
+            x0 < static_cast<int>(canvas[y0].size())) {
+
+            canvas[y0][x0] = '*';
+        }
 
         if (x0 == x1 && y0 == y1) {
             break;
@@ -46,22 +125,10 @@ void drawLine(std::vector<std::string>& canvas, ScreenPoint from, ScreenPoint to
     }
 }
 
-void drawAxes(std::vector<std::string>& canvas, const std::vector<Point>& points,
-              const PlotConfig& config) {
-    if (points.empty()) {
-        return;
-    }
-
-    const double xmin = points.front().x;
-    const double xmax = points.back().x;
-
-    double ymin = points.front().y;
-    double ymax = points.front().y;
-
-    for (const auto& point : points) {
-        ymin = std::min(ymin, point.y);
-        ymax = std::max(ymax, point.y);
-    }
+void drawAxes(
+    std::vector<std::string>& canvas,
+    const PlotBounds& bounds,
+    const PlotConfig& config) {
 
     bool hasXAxis = false;
     bool hasYAxis = false;
@@ -69,24 +136,64 @@ void drawAxes(std::vector<std::string>& canvas, const std::vector<Point>& points
     std::size_t xAxisRow = 0;
     std::size_t yAxisColumn = 0;
 
-    if (xmin <= 0.0 && xmax >= 0.0 && xmin != xmax) {
-        const double normalizedX = (0.0 - xmin) / (xmax - xmin);
+    // Y-axis: x = 0
+    if (bounds.xmin <= 0.0 &&
+        bounds.xmax >= 0.0 &&
+        bounds.xmin != bounds.xmax) {
 
-        yAxisColumn = static_cast<std::size_t>(std::lround(normalizedX * (config.width - 1)));
+        double normalizedX =
+            (0.0 - bounds.xmin) /
+            (bounds.xmax - bounds.xmin);
 
-        for (std::size_t row = 0; row < config.height; ++row) {
+        normalizedX =
+            std::clamp(
+                normalizedX,
+                0.0,
+                1.0);
+
+        yAxisColumn =
+            static_cast<std::size_t>(
+                std::lround(
+                    normalizedX *
+                    static_cast<double>(
+                        config.width - 1)));
+
+        for (std::size_t row = 0;
+             row < config.height;
+             ++row) {
+
             canvas[row][yAxisColumn] = '|';
         }
 
         hasYAxis = true;
     }
 
-    if (ymin <= 0.0 && ymax >= 0.0 && ymin != ymax) {
-        const double normalizedY = (0.0 - ymin) / (ymax - ymin);
+    // X-axis: y = 0
+    if (bounds.ymin <= 0.0 &&
+        bounds.ymax >= 0.0 &&
+        bounds.ymin != bounds.ymax) {
 
-        xAxisRow = static_cast<std::size_t>(std::lround((1.0 - normalizedY) * (config.height - 1)));
+        double normalizedY =
+            (0.0 - bounds.ymin) /
+            (bounds.ymax - bounds.ymin);
 
-        for (std::size_t column = 0; column < config.width; ++column) {
+        normalizedY =
+            std::clamp(
+                normalizedY,
+                0.0,
+                1.0);
+
+        xAxisRow =
+            static_cast<std::size_t>(
+                std::lround(
+                    (1.0 - normalizedY) *
+                    static_cast<double>(
+                        config.height - 1)));
+
+        for (std::size_t column = 0;
+             column < config.width;
+             ++column) {
+
             canvas[xAxisRow][column] = '-';
         }
 
@@ -98,69 +205,278 @@ void drawAxes(std::vector<std::string>& canvas, const std::vector<Point>& points
     }
 }
 
+void printGraph(
+    const std::vector<std::string>& canvas,
+    const PlotBounds& bounds,
+    const PlotConfig& config) {
+
+    constexpr int labelWidth = 10;
+
+    const std::string ymaxLabel =
+        formatValue(bounds.ymax);
+
+    const std::string yminLabel =
+        formatValue(bounds.ymin);
+
+    std::cout << '\n';
+
+    for (std::size_t row = 0;
+         row < canvas.size();
+         ++row) {
+
+        if (row == 0) {
+            std::cout
+                << std::setw(labelWidth)
+                << ymaxLabel;
+        } else if (row == canvas.size() - 1) {
+            std::cout
+                << std::setw(labelWidth)
+                << yminLabel;
+        } else {
+            std::cout
+                << std::setw(labelWidth)
+                << "";
+        }
+
+        std::cout
+            << " | "
+            << canvas[row]
+            << '\n';
+    }
+
+    std::string xLabels(
+        config.width,
+        ' ');
+
+    const std::string xminLabel =
+        formatValue(bounds.xmin);
+
+    const std::string xmaxLabel =
+        formatValue(bounds.xmax);
+
+    for (std::size_t i = 0;
+         i < xminLabel.size() &&
+         i < xLabels.size();
+         ++i) {
+
+        xLabels[i] = xminLabel[i];
+    }
+
+    if (xmaxLabel.size() <=
+        xLabels.size()) {
+
+        const std::size_t start =
+            xLabels.size() -
+            xmaxLabel.size();
+
+        for (std::size_t i = 0;
+             i < xmaxLabel.size();
+             ++i) {
+
+            xLabels[start + i] =
+                xmaxLabel[i];
+        }
+    }
+
+    std::cout
+        << std::string(
+               labelWidth + 3,
+               ' ')
+        << xLabels
+        << "\n\n";
+}
+
 }  // namespace
 
-std::vector<ScreenPoint> scalePoints(const std::vector<Point>& points, std::size_t height) {
+std::vector<ScreenPoint> scalePoints(
+    const std::vector<Point>& points,
+    std::size_t width,
+    std::size_t height) {
+
     std::vector<ScreenPoint> result;
 
-    if (points.empty()) {
+    if (points.empty() ||
+        width < 2 ||
+        height < 2) {
+
+        return result;
+    }
+
+    const auto bounds =
+        calculateBounds(points);
+
+    if (!bounds.has_value()) {
         return result;
     }
 
     result.reserve(points.size());
 
-    double ymin = points.front().y;
-    double ymax = points.front().y;
-
     for (const auto& point : points) {
-        ymin = std::min(ymin, point.y);
-        ymax = std::max(ymax, point.y);
-    }
+        double normalizedX =
+            (point.x - bounds->xmin) /
+            (bounds->xmax - bounds->xmin);
 
-    if (ymin == ymax) {
-        const std::size_t row = height / 2;
+        normalizedX =
+            std::clamp(
+                normalizedX,
+                0.0,
+                1.0);
 
-        for (std::size_t i = 0; i < points.size(); ++i) {
-            result.push_back({i, row});
+        const std::size_t column =
+            static_cast<std::size_t>(
+                std::lround(
+                    normalizedX *
+                    static_cast<double>(
+                        width - 1)));
+
+        if (!isValidY(point)) {
+            result.push_back({
+                column,
+                0,
+                false
+            });
+
+            continue;
         }
 
-        return result;
-    }
+        if (bounds->ymin ==
+            bounds->ymax) {
 
-    for (std::size_t i = 0; i < points.size(); ++i) {
-        const double normalizedY = (points[i].y - ymin) / (ymax - ymin);
+            result.push_back({
+                column,
+                height / 2,
+                true
+            });
+
+            continue;
+        }
+
+        double normalizedY =
+            (*point.y - bounds->ymin) /
+            (bounds->ymax -
+             bounds->ymin);
+
+        normalizedY =
+            std::clamp(
+                normalizedY,
+                0.0,
+                1.0);
 
         const std::size_t row =
-            static_cast<std::size_t>(std::lround((1.0 - normalizedY) * (height - 1)));
+            static_cast<std::size_t>(
+                std::lround(
+                    (1.0 - normalizedY) *
+                    static_cast<double>(
+                        height - 1)));
 
-        result.push_back({i, row});
+        result.push_back({
+            column,
+            row,
+            true
+        });
     }
 
     return result;
 }
 
-void drawGraph(const std::vector<Point>& points, const PlotConfig& config) {
+void drawGraph(
+    const std::vector<Point>& points,
+    const PlotConfig& config) {
+
     if (points.empty()) {
+        std::cout
+            << "\nNo points to draw.\n\n";
         return;
     }
 
-    std::vector<std::string> canvas(config.height, std::string(config.width, ' '));
+    if (config.width < 2 ||
+        config.height < 2) {
 
-    drawAxes(canvas, points, config);
+        std::cout
+            << "\nInvalid plot size.\n\n";
 
-    const auto screenPoints = scalePoints(points, config.height);
-
-    for (std::size_t i = 1; i < screenPoints.size(); ++i) {
-        drawLine(canvas, screenPoints[i - 1], screenPoints[i]);
+        return;
     }
 
-    std::cout << '\n';
+    const auto bounds =
+        calculateBounds(points);
 
-    for (const auto& row : canvas) {
-        std::cout << row << '\n';
+    if (!bounds.has_value()) {
+        std::cout
+            << "\nNo valid points "
+               "in selected range.\n\n";
+
+        return;
     }
 
-    std::cout << '\n';
+    std::vector<std::string> canvas(
+        config.height,
+        std::string(
+            config.width,
+            ' ')
+    );
+
+    // Оси сначала, график поверх них.
+    drawAxes(
+        canvas,
+        *bounds,
+        config
+    );
+
+    const auto screenPoints =
+        scalePoints(
+            points,
+            config.width,
+            config.height
+        );
+
+    for (std::size_t i = 1;
+         i < screenPoints.size();
+         ++i) {
+
+        const ScreenPoint& previous =
+            screenPoints[i - 1];
+
+        const ScreenPoint& current =
+            screenPoints[i];
+
+        // Разрыв области определения.
+        if (!previous.valid ||
+            !current.valid) {
+
+            continue;
+        }
+
+        /*
+         * Защита от соединения ветвей
+         * функции через вертикальную
+         * асимптоту.
+         *
+         * Особенно важно для 1/x.
+         */
+        const std::size_t rowDifference =
+            previous.row > current.row
+                ? previous.row - current.row
+                : current.row - previous.row;
+
+        if (rowDifference >
+            config.height / 2) {
+
+            continue;
+        }
+
+        drawLine(
+            canvas,
+            previous,
+            current
+        );
+    }
+
+    printGraph(
+        canvas,
+        *bounds,
+        config
+    );
 }
 
 }  // namespace plotter

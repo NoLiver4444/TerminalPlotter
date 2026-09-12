@@ -1,26 +1,49 @@
 #include "../include/plotter/function.hpp"
 
-#include "math.h"
 #include <cmath>
 
 namespace plotter {
 
-double evaluate(FunctionType function, double x) {
+std::optional<double> evaluate(FunctionType function, double x) {
     switch (function) {
-        case plotter::FunctionType::Linear:
+        case FunctionType::Linear:
             return x;
 
-        case plotter::FunctionType::Square:
+        case FunctionType::Square:
             return x * x;
 
-        case plotter::FunctionType::Cos:
+        case FunctionType::Sin:
+            return std::sin(x);
+
+        case FunctionType::Cos:
             return std::cos(x);
 
-        case plotter::FunctionType::Sin:
-            return std::sin(x);
+        case FunctionType::Sqrt:
+            if (x < 0.0) {
+                return std::nullopt;
+            }
+
+            return std::sqrt(x);
+
+        case FunctionType::Log:
+            if (x <= 0.0) {
+                return std::nullopt;
+            }
+
+            return std::log(x);
+
+        case FunctionType::Abs:
+            return std::abs(x);
+
+        case FunctionType::Hyperbola:
+            if (x == 0.0) {
+                return std::nullopt;
+            }
+
+            return 1.0 / x;
     }
 
-    return 0.0;
+    return std::nullopt;
 }
 
 }  // namespace plotter
