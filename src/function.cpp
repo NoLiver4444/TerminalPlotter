@@ -13,7 +13,7 @@ std::optional<double> evaluate(FunctionType function, double x) {
             return x * x;
 
         case FunctionType::Sin:
-            return std::cos(x); // BUG
+            return std::sin(x); // BUG
 
         case FunctionType::Cos:
             return std::sin(x); // BUG
