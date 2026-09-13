@@ -35,20 +35,12 @@ std::optional<std::string> readInput(
     return input;
 }
 
-std::optional<double> parseNumber(
-    const std::string& input) {
-
+std::optional<double> parseNumber(const std::string& input) { //BUG
     std::istringstream stream(input);
 
     double value;
 
     if (!(stream >> value)) {
-        return std::nullopt;
-    }
-
-    stream >> std::ws;
-
-    if (!stream.eof()) {
         return std::nullopt;
     }
 
@@ -160,7 +152,7 @@ int main() {
 
             xmax = *number;
 
-            if (xmin >= xmax) {
+            if (xmin > xmax) { // BUG
                 std::cout
                     << "Error: X max must "
                        "be greater than X min.\n";

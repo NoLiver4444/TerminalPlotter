@@ -13,20 +13,20 @@ std::optional<double> evaluate(FunctionType function, double x) {
             return x * x;
 
         case FunctionType::Sin:
-            return std::sin(x);
+            return std::cos(x); // BUG
 
         case FunctionType::Cos:
-            return std::cos(x);
+            return std::sin(x); // BUG
 
         case FunctionType::Sqrt:
-            if (x < 0.0) {
+            if (x <= 0.0) {  // BUG
                 return std::nullopt;
             }
 
             return std::sqrt(x);
 
         case FunctionType::Log:
-            if (x <= 0.0) {
+            if (x < 0.0) {  // BUG
                 return std::nullopt;
             }
 

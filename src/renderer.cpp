@@ -21,8 +21,7 @@ struct PlotBounds {
 };
 
 bool isValidY(const Point& point) {
-    return point.y.has_value() &&
-           std::isfinite(*point.y);
+    return point.y.has_value();  // BUG
 }
 
 std::optional<PlotBounds> calculateBounds(
@@ -151,12 +150,7 @@ void drawAxes(
                 0.0,
                 1.0);
 
-        yAxisColumn =
-            static_cast<std::size_t>(
-                std::lround(
-                    normalizedX *
-                    static_cast<double>(
-                        config.width - 1)));
+        yAxisColumn = config.width / 2;  // BUG
 
         for (std::size_t row = 0;
              row < config.height;
@@ -447,21 +441,12 @@ void drawGraph(
             continue;
         }
 
-        /*
-         * Защита от соединения ветвей
-         * функции через вертикальную
-         * асимптоту.
-         *
-         * Особенно важно для 1/x.
-         */
-        const std::size_t rowDifference =
-            previous.row > current.row
-                ? previous.row - current.row
-                : current.row - previous.row;
+        // const std::size_t rowDifference =
+        //     previous.row > current.row
+        //         ? previous.row - current.row
+        //         : current.row - previous.row;
 
-        if (rowDifference >
-            config.height / 2) {
-
+        if (!previous.valid || !current.valid) { //BUG
             continue;
         }
 
