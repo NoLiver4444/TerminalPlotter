@@ -21,7 +21,7 @@ struct PlotBounds {
 };
 
 bool isValidY(const Point& point) {
-    return point.y.has_value();  // BUG
+    return point.y.has_value();  
 }
 
 std::optional<PlotBounds> calculateBounds(
@@ -150,7 +150,7 @@ void drawAxes(
                 0.0,
                 1.0);
 
-        yAxisColumn = config.width / 2;  // BUG
+        yAxisColumn = config.width / 2;  
 
         for (std::size_t row = 0;
              row < config.height;

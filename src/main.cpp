@@ -152,7 +152,7 @@ int main() {
 
             xmax = *number;
 
-            if (xmin > xmax) { // BUG
+            if (xmin > xmax) { 
                 std::cout
                     << "Error: X max must "
                        "be greater than X min.\n";

@@ -14,7 +14,7 @@ std::vector<Point> calculatePlot(
 
     const double step =
         (xmax - xmin) /
-        static_cast<double>(width); // BUG
+        static_cast<double>(width); 
 
     std::vector<Point> result;
     result.reserve(width);
